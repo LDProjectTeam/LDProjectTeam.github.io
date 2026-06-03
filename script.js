@@ -6,7 +6,7 @@ const T = {
     navDownload: 'Скачать',
     navCommunity: 'Сообщество',
     navDownloadBtn: '⬇ Скачать',
-    heroBadge: 'v3.2.0 · Доступно сейчас',
+    heroBadge: 'v3.5.0 · Доступно сейчас',
     heroTitle: 'LDLauncher',
     heroSubtitle: 'LDProject · 2026',
     heroDesc: 'Профессиональный лаунчер для серии модпаков <strong>Lost Death</strong> — с автооптимизатором системы, встроенным чатом поддержки и уникальным CRT-интерфейсом.',
@@ -62,7 +62,7 @@ const T = {
     navDownload: 'Download',
     navCommunity: 'Community',
     navDownloadBtn: '⬇ Download',
-    heroBadge: 'v3.2.0 · Available Now',
+    heroBadge: 'v3.5.0 · Available Now',
     heroTitle: 'LDLauncher',
     heroSubtitle: 'LDProject · 2026',
     heroDesc: 'A professional launcher for the <strong>Lost Death</strong> modpack series — with a system auto-optimizer, built-in support chat, and a unique CRT-style interface.',
@@ -118,7 +118,7 @@ const T = {
     navDownload: 'Завантажити',
     navCommunity: 'Спільнота',
     navDownloadBtn: '⬇ Завантажити',
-    heroBadge: 'v3.2.0 · Доступно зараз',
+    heroBadge: 'v3.5.0 · Доступно зараз',
     heroTitle: 'LDLauncher',
     heroSubtitle: 'LDProject · 2026',
     heroDesc: 'Професійний лаунчер для серії модпаків <strong>Lost Death</strong> — з автооптимізатором системи, вбудованим чатом підтримки та унікальним CRT-інтерфейсом.',
@@ -174,6 +174,41 @@ const DOWNLOAD_URL = 'https://github.com/LDProjectTeam/LDL/releases/latest';
 
 // ─── State ──────────────────────────────────────────────────────────────────
 let currentLang = localStorage.getItem('ldl-lang') || 'ru';
+let latestVersion = 'v3.5.0'; // Fallback
+let installerUrl = DOWNLOAD_URL;
+let portableUrl = DOWNLOAD_URL;
+
+function fetchLatestVersion() {
+  fetch('https://api.github.com/repos/LDProjectTeam/LDL/releases/latest')
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to fetch latest version info');
+      return res.json();
+    })
+    .then(data => {
+      if (data && data.tag_name) {
+        let tag = data.tag_name;
+        if (!tag.startsWith('v')) {
+          tag = 'v' + tag;
+        }
+        latestVersion = tag;
+        
+        if (data.assets && Array.isArray(data.assets)) {
+          const setupAsset = data.assets.find(a => a.name.includes('Setup') && a.name.endsWith('.exe'));
+          const portableAsset = data.assets.find(a => !a.name.includes('Setup') && a.name.endsWith('.exe'));
+          if (setupAsset) {
+            installerUrl = setupAsset.browser_download_url;
+          }
+          if (portableAsset) {
+            portableUrl = portableAsset.browser_download_url;
+          }
+        }
+        render();
+      }
+    })
+    .catch(err => {
+      console.warn('Could not fetch latest release dynamically, using default values:', err);
+    });
+}
 
 // ─── Render ─────────────────────────────────────────────────────────────────
 function render() {
@@ -192,12 +227,26 @@ function render() {
   document.getElementById('nav-dl-btn').textContent = t.navDownloadBtn;
 
   // Hero
-  document.getElementById('hero-badge').querySelector('span').textContent = t.heroBadge;
+  const badgeText = t.heroBadge.replace(/v\d+\.\d+\.\d+/, latestVersion);
+  document.getElementById('hero-badge').querySelector('span').textContent = badgeText;
   document.getElementById('hero-desc').innerHTML = t.heroDesc;
   document.getElementById('hero-dl-btn').textContent = t.heroDownload;
   document.getElementById('hero-gh-btn').textContent = t.heroGitHub;
   document.getElementById('hero-version').textContent = t.heroVersion;
   document.getElementById('screenshots-label').textContent = t.screenshotsLabel;
+
+  // Update download button URLs dynamically
+  const navDlBtn = document.getElementById('nav-dl-btn');
+  if (navDlBtn) navDlBtn.href = installerUrl;
+
+  const heroDlBtn = document.getElementById('hero-dl-btn');
+  if (heroDlBtn) heroDlBtn.href = installerUrl;
+
+  const dlInstallerBtn = document.getElementById('dl-installer-btn');
+  if (dlInstallerBtn) dlInstallerBtn.href = installerUrl;
+
+  const dlPortableBtn = document.getElementById('dl-portable-btn');
+  if (dlPortableBtn) dlPortableBtn.href = portableUrl;
 
   // Features
   document.getElementById('features-label').textContent = t.featuresLabel;
@@ -281,6 +330,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   render();
   observeFadeIns();
+
+  // Fetch latest version from GitHub releases dynamically
+  fetchLatestVersion();
 
   // Support Email Link Trigger (ИСПРАВЛЕНО: ОТКРЫВАЕТ ССЫЛКУ)
   const emailCard = document.querySelector('.social-card.email');
